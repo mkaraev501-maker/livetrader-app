@@ -1,0 +1,53 @@
+name: Build APK
+
+on:
+  push:
+    paths:
+      - "app.zip"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Unzip project
+        run: |
+          mkdir -p project
+          unzip -q -o app.zip -d project
+          S=$(find project -name settings.gradle.kts | head -1)
+          echo "PROJECT_DIR=$(dirname "$S")" >> "$GITHUB_ENV"
+
+      - name: Build debug APK
+        run: |
+          cd "$PROJECT_DIR"
+          gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Save APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-trader-apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Live Trader build ${{ github.run_number }}
+          files: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
