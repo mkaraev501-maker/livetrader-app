@@ -35,7 +35,15 @@ jobs:
       - name: Build debug APK
         run: |
           cd "$PROJECT_DIR"
-          gradle assembleDebug --no-daemon --stacktrace
+          set +e
+          gradle assembleDebug --no-daemon --stacktrace > build.log 2>&1
+          CODE=$?
+          echo "=========== КРАТКО ОБ ОШИБКАХ ==========="
+          grep -E "^e: |^w: .*(Unresolved|error)|What went wrong|Execution failed|SDK location|error:" build.log | cut -c1-230 | head -40
+          echo "=========== ПОДРОБНЕЕ ==========="
+          grep -A8 "What went wrong" build.log | cut -c1-230 | head -40
+          echo "=========== КОНЕЦ, код $CODE ==========="
+          exit $CODE
 
       - name: Save APK as artifact
         uses: actions/upload-artifact@v4
